@@ -2,84 +2,85 @@ package com.mvcoding.mvpchat.feature.message
 
 import com.mvcoding.mvp.Presenter
 import com.mvcoding.mvpchat.DataSource
-import com.mvcoding.mvpchat.PageDataSource
 import com.mvcoding.mvpchat.RxSchedulers
 import com.mvcoding.mvpchat.model.Message
 import rx.Observable
 import rx.Observable.empty
+import rx.Observable.just
+import rx.lang.kotlin.BehaviorSubject
 import rx.lang.kotlin.toSingletonObservable
 
 class MessagesPresenter(
-        private val firstPagePostsSource: DataSource<List<Message>>,
-        private val newPostsSource: DataSource<Message>,
-        private val postsPageSource: PageDataSource<List<Message>>,
+        private val messagesSource: DataSource<List<Message>>,
+        private val newMessagesSource: DataSource<Message>,
+        private val messagesPagesSource: DataSource<List<Message>>,
         private val schedulers: RxSchedulers) : Presenter<MessagesPresenter.View>() {
 
-    private var isInitialDataLoaded = false
-    private var isPageLoading = false
+    private val allowPagingSubject = BehaviorSubject(false)
 
     override fun onViewAttached(view: View) {
         super.onViewAttached(view)
 
-        view.refreshes()
-                .startWith(Unit)
-                .doOnNext { postsPageSource.resetPaging() }
+        just(Unit)
                 .doOnNext { view.showLoading() }
                 .observeOn(schedulers.io)
-                .switchMap { firstPagePostsSource.data().handleErrors(view) }
+                .switchMap { messagesSource.data() }
                 .observeOn(schedulers.main)
                 .doOnNext { view.hideLoading() }
-                .subscribeUntilDetached { showFirstPage(view, it) }
+                .doOnError { view.hideLoading() }
+                .retryWhen { handleErrors(view, it) }
+                .subscribeUntilDetached {
+                    view.showMessages(it)
+                    startListeningToPageRequests()
+                }
 
-        newPostsSource.data()
+        newMessagesSource.data()
                 .subscribeOn(schedulers.io)
                 .observeOn(schedulers.main)
-                .subscribeUntilDetached { view.addNewPost(it) }
+                .subscribeUntilDetached { view.addNewMessage(it) }
 
         view.nextPageRequests()
-                .filter { validStateForPaging() }
-                .doOnNext { isPageLoading = true }
+                .proceedOnlyWhenPagingIsAllowed()
+                .doOnNext { stopListeningToPagingRequests() }
                 .doOnNext { view.showLoadingNextPage() }
                 .observeOn(schedulers.io)
-                .switchMap { postsPageSource.data().handlePagingErrors(view) }
+                .switchMap { loadMessagesPage(view) }
                 .observeOn(schedulers.main)
                 .doOnNext { view.hideLoadingNextPage() }
-                .doOnNext { isPageLoading = false }
-                .subscribeUntilDetached { view.addPostsPage(it) }
+                .subscribeUntilDetached { view.addMessagesPage(it) }
     }
 
-    private fun showFirstPage(view: View, messages: List<Message>) {
-        view.showPosts(messages)
-        isInitialDataLoaded = true
+    private fun handleErrors(view: View, errors: Observable<out Throwable>) = errors.switchMap { view.showErrorAndAllowToRetry(it) }
+    private fun startListeningToPageRequests(): Unit = allowPagingSubject.onNext(true)
+    private fun stopListeningToPagingRequests(): Unit = allowPagingSubject.onNext(false)
+    private fun stopPagingCompletely() {
+        allowPagingSubject.onNext(false)
+        allowPagingSubject.onCompleted()
     }
 
-    private fun validStateForPaging() = !isPageLoading && isInitialDataLoaded && postsPageSource.hasNextPage()
+    private fun Observable<Unit>.proceedOnlyWhenPagingIsAllowed() =
+            withLatestFrom(allowPagingSubject) { _, allowPaging -> allowPaging }.filter { it }
 
-    private fun <T> Observable<T>.handleErrors(view: View): Observable<T> = onErrorResumeNext {
-        it.toSingletonObservable()
-                .observeOn(schedulers.main)
-                .doOnNext { view.hideLoading() }
-                .subscribe { view.showError(it) }
-        empty()
-    }
+    private fun loadMessagesPage(view: View) = messagesPagesSource.data()
+            .doOnNext { startListeningToPageRequests() }
+            .doOnCompleted { stopPagingCompletely() }
+            .handlePagingErrors(view)
 
     private fun <T> Observable<T>.handlePagingErrors(view: View): Observable<T> = onErrorResumeNext {
         it.toSingletonObservable()
                 .observeOn(schedulers.main)
                 .doOnNext { view.hideLoadingNextPage() }
-                .doOnNext { isPageLoading = false }
+                .doOnNext { startListeningToPageRequests() }
                 .subscribe { view.showNextPageError(it) }
         empty()
     }
 
     interface View : Presenter.View {
-        fun refreshes(): Observable<Unit>
         fun nextPageRequests(): Observable<Unit>
-
-        fun showPosts(messages: List<Message>)
-        fun addNewPost(newMessage: Message)
-        fun addPostsPage(data: List<Message>)
-        fun showError(throwable: Throwable)
+        fun showMessages(messages: List<Message>)
+        fun addNewMessage(newMessage: Message)
+        fun addMessagesPage(messages: List<Message>)
+        fun showErrorAndAllowToRetry(throwable: Throwable): Observable<Unit>
         fun showNextPageError(throwable: Throwable)
         fun showLoading()
         fun hideLoading()
