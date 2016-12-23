@@ -1,19 +1,19 @@
-package com.mvcoding.mvpchat.feature.post
+package com.mvcoding.mvpchat.feature.message
 
 import com.mvcoding.mvp.Presenter
 import com.mvcoding.mvpchat.DataSource
 import com.mvcoding.mvpchat.PageDataSource
 import com.mvcoding.mvpchat.RxSchedulers
-import com.mvcoding.mvpchat.model.Post
+import com.mvcoding.mvpchat.model.Message
 import rx.Observable
 import rx.Observable.empty
 import rx.lang.kotlin.toSingletonObservable
 
-class PostsPresenter(
-        private val firstPagePostsSource: DataSource<List<Post>>,
-        private val newPostsSource: DataSource<Post>,
-        private val postsPageSource: PageDataSource<List<Post>>,
-        private val schedulers: RxSchedulers) : Presenter<PostsPresenter.View>() {
+class MessagesPresenter(
+        private val firstPagePostsSource: DataSource<List<Message>>,
+        private val newPostsSource: DataSource<Message>,
+        private val postsPageSource: PageDataSource<List<Message>>,
+        private val schedulers: RxSchedulers) : Presenter<MessagesPresenter.View>() {
 
     private var isInitialDataLoaded = false
     private var isPageLoading = false
@@ -48,8 +48,8 @@ class PostsPresenter(
                 .subscribeUntilDetached { view.addPostsPage(it) }
     }
 
-    private fun showFirstPage(view: View, posts: List<Post>) {
-        view.showPosts(posts)
+    private fun showFirstPage(view: View, messages: List<Message>) {
+        view.showPosts(messages)
         isInitialDataLoaded = true
     }
 
@@ -76,9 +76,9 @@ class PostsPresenter(
         fun refreshes(): Observable<Unit>
         fun nextPageRequests(): Observable<Unit>
 
-        fun showPosts(posts: List<Post>)
-        fun addNewPost(newPost: Post)
-        fun addPostsPage(data: List<Post>)
+        fun showPosts(messages: List<Message>)
+        fun addNewPost(newMessage: Message)
+        fun addPostsPage(data: List<Message>)
         fun showError(throwable: Throwable)
         fun showNextPageError(throwable: Throwable)
         fun showLoading()

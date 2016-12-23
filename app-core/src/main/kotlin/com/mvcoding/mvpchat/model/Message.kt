@@ -1,3 +1,3 @@
 package com.mvcoding.mvpchat.model
 
-data class Post(val message: String)
+data class Message(val text: String)

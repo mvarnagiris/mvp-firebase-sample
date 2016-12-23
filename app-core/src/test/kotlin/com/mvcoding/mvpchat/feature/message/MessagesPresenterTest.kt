@@ -1,11 +1,17 @@
-package com.mvcoding.mvpchat.feature.post
+package com.mvcoding.mvpchat.feature.message
 
 import com.mvcoding.mvpchat.DataSource
 import com.mvcoding.mvpchat.PageDataSource
-import com.mvcoding.mvpchat.model.Post
-import com.mvcoding.mvpchat.model.aPost
+import com.mvcoding.mvpchat.model.Message
+import com.mvcoding.mvpchat.model.aMessage
 import com.mvcoding.mvpchat.rxSchedulers
-import com.nhaarman.mockito_kotlin.*
+import com.nhaarman.mockito_kotlin.any
+import com.nhaarman.mockito_kotlin.inOrder
+import com.nhaarman.mockito_kotlin.mock
+import com.nhaarman.mockito_kotlin.never
+import com.nhaarman.mockito_kotlin.times
+import com.nhaarman.mockito_kotlin.verify
+import com.nhaarman.mockito_kotlin.whenever
 import org.junit.Before
 import org.junit.Test
 import rx.Observable
@@ -13,21 +19,21 @@ import rx.Observable.error
 import rx.Observable.just
 import rx.lang.kotlin.PublishSubject
 
-class PostsPresenterTest {
+class MessagesPresenterTest {
 
-    val newPostsSubject = PublishSubject<Post>()
-    var postsPageSubject = PublishSubject<List<Post>>()
+    val newPostsSubject = PublishSubject<Message>()
+    var postsPageSubject = PublishSubject<List<Message>>()
     val refreshesSubject = PublishSubject<Unit>()
     val nextPageRequestsSubject = PublishSubject<Unit>()
 
-    val initialPosts = listOf(aPost(), aPost(), aPost())
+    val initialPosts = listOf(aMessage(), aMessage(), aMessage())
 
-    val firstPagePostsSource = mock<DataSource<List<Post>>>()
-    val newPostsSource = mock<DataSource<Post>>()
-    val postsPageSource = mock<PageDataSource<List<Post>>>()
-    val view = mock<PostsPresenter.View>()
+    val firstPagePostsSource = mock<DataSource<List<Message>>>()
+    val newPostsSource = mock<DataSource<Message>>()
+    val postsPageSource = mock<PageDataSource<List<Message>>>()
+    val view = mock<MessagesPresenter.View>()
     val inOrder = inOrder(view, postsPageSource)
-    val presenter = PostsPresenter(
+    val presenter = MessagesPresenter(
             firstPagePostsSource,
             newPostsSource,
             postsPageSource,
@@ -54,8 +60,8 @@ class PostsPresenterTest {
 
     @Test
     fun `adds new posts as they arrive`() {
-        val newPost = aPost()
-        val anotherNewPost = aPost()
+        val newPost = aMessage()
+        val anotherNewPost = aMessage()
         presenter.attach(view)
 
         receiveNewPost(newPost)
@@ -67,7 +73,7 @@ class PostsPresenterTest {
 
     @Test
     fun `requests and adds new pages of posts when paging edge is reached`() {
-        val postsPage = listOf(aPost(), aPost())
+        val postsPage = listOf(aMessage(), aMessage())
         presenter.attach(view)
 
         requestNextPage()
@@ -100,7 +106,7 @@ class PostsPresenterTest {
 
     @Test
     fun `doesn't try to load next page when it is already being loaded`() {
-        val postsPage = listOf(aPost(), aPost())
+        val postsPage = listOf(aMessage(), aMessage())
         presenter.attach(view)
 
         requestNextPage()
@@ -147,7 +153,7 @@ class PostsPresenterTest {
     @Test
     fun `handles and recovers from paging errors`() {
         val throwable = Throwable()
-        val postsPage = listOf(aPost(), aPost())
+        val postsPage = listOf(aMessage(), aMessage())
         presenter.attach(view)
 
         requestNextPage()
@@ -172,8 +178,8 @@ class PostsPresenterTest {
 
     fun refresh() = refreshesSubject.onNext(Unit)
     fun requestNextPage() = nextPageRequestsSubject.onNext(Unit)
-    fun receiveNewPost(post: Post) = newPostsSubject.onNext(post)
-    fun receiveNewPostsPage(posts: List<Post>) = postsPageSubject.onNext(posts)
+    fun receiveNewPost(message: Message) = newPostsSubject.onNext(message)
+    fun receiveNewPostsPage(messages: List<Message>) = postsPageSubject.onNext(messages)
     fun failPaging(throwable: Throwable) {
         postsPageSubject.onError(throwable)
         postsPageSubject = PublishSubject()
