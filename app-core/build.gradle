@@ -7,5 +7,5 @@ dependencies {
 
     testCompile "org.jetbrains.kotlin:kotlin-test:$kotlin_version"
     testCompile 'junit:junit:4.12'
-    testCompile 'com.nhaarman:mockito-kotlin:0.10.1'
+    testCompile 'com.nhaarman:mockito-kotlin:1.0.1'
 }
