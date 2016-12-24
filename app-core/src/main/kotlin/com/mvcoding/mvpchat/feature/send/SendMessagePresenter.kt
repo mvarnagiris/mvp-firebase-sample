@@ -44,7 +44,6 @@ class SendMessagePresenter(
     interface View : Presenter.View {
         fun sends(): Observable<Unit>
         fun messageChanges(): Observable<String>
-
         fun showMessageToSend(messageToSend: MessageToSend)
         fun enableSend()
         fun disableSend()
